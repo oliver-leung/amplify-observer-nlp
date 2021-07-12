@@ -929,7 +929,7 @@ def load_pyspark_model_from_trained_parameters(trained_parameters, model_factory
 
 
 def fit_and_save_model(trained_parameters, name, algorithm, df):
-    model = algorithm.fit(df)
+    model = algorithm.fit(df, )
     trained_parameters[name] = encode_pyspark_model(model)
     return model
 
