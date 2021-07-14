@@ -13,7 +13,12 @@ class VectorSimilarity(BaseEstimator):
     def fit(self, X, y):
         # Required to pass check_estimator()
         if X.dtype == np.dtype('complex128'):
-            raise ValueError("Complex data not supported")
+            raise ValueError('Complex data not supported')
+            
+        # Convert dense (i.e. "efficient") array representation to sparse
+        if not isinstance(X, (np.ndarray, np.generic)):
+            X = X.toarray()
+            
         X, y = self._validate_data(X, y)
 
         self._Vectors = X
@@ -26,6 +31,10 @@ class VectorSimilarity(BaseEstimator):
         gram_descending = np.flip(gram_matrix.argsort(), axis=1)
 
         n_best_labels = self._labels.take(gram_descending[:, :self.n_best])
-        n_best_confidence = gram_matrix.take(gram_descending[:, :self.n_best])
+        n_best_confidence = gram_descending.take(gram_descending[:, :self.n_best])
 
-        return n_best_labels, n_best_confidence
+#         return n_best_labels, n_best_confidence
+
+        print(n_best_labels.shape)
+        print(X.shape)
+        return n_best_labels
