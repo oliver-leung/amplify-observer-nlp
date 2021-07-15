@@ -14,27 +14,37 @@ class VectorSimilarity(BaseEstimator):
         # Required to pass check_estimator()
         if X.dtype == np.dtype('complex128'):
             raise ValueError('Complex data not supported')
-            
+
         # Convert dense (i.e. "efficient") array representation to sparse
         if not isinstance(X, (np.ndarray, np.generic)):
             X = X.toarray()
-            
+
         X, y = self._validate_data(X, y)
 
-        self._Vectors = X
-        self._labels = y
+        # Model performance should be decoupled from references to training data
+        self._Vectors = np.copy(X)
+        self._labels = np.copy(y)
 
         return self
 
-    def predict(self, X):
+    def _gram_matrices(self, X):
         gram_matrix = linear_kernel(X, self._Vectors)
-        gram_descending = np.flip(gram_matrix.argsort(), axis=1)
+        gram_desc_args = np.fliplr(gram_matrix.argsort())
+        gram_desc = np.take_along_axis(gram_matrix, gram_desc_args, axis=1)
 
-        n_best_labels = self._labels.take(gram_descending[:, :self.n_best])
-        n_best_confidence = gram_descending.take(gram_descending[:, :self.n_best])
+        return gram_matrix, gram_desc_args, gram_desc
 
-#         return n_best_labels, n_best_confidence
+    def predict(self, X):
+        return self.predict_score(X)[0]
 
-        print(n_best_labels.shape)
-        print(X.shape)
-        return n_best_labels
+    def score(self, X, y=None):
+        return self.predict_score(X)[1]
+
+    def predict_score(self, X):
+        # Ensures that any call to predict/score will require only one call to linear_kernel()
+        gram_matrix, gram_desc_args, gram_desc = self._gram_matrices(X)
+
+        pred = self._labels.take(gram_desc_args[:, :self.n_best])
+        score = gram_desc[:, :self.n_best]
+
+        return pred, score
