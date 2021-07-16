@@ -6,6 +6,7 @@
 .jupyter/
 .wget-hsts
 .yarnrc
+training_data.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
