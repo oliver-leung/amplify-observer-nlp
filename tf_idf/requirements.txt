@@ -1,0 +1,6 @@
+pip
+progress
+awswrangler
+boto3
+pandas
+scikit-learn
