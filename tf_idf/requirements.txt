@@ -4,3 +4,5 @@ awswrangler
 boto3
 pandas
 scikit-learn
+markdown
+bs4
