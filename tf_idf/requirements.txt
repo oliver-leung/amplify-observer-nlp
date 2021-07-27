@@ -6,3 +6,5 @@ pandas
 scikit-learn
 markdown
 bs4
+sagemaker
+joblib
