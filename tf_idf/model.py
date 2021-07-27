@@ -115,7 +115,7 @@ def get_model(lemmatize, **hyperparams):
     # Create and train pipeline
     pipe = make_pipeline(
         vectorizer,
-        VectorSimilarity(n_best=hyperparams['n_best'])
+        VectorSimilarity(**hyperparams)
     )
 
     # Add the predict_score() function from VectorSimilarity - inelegant, but gets the job done
