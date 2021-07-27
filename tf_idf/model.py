@@ -14,7 +14,7 @@ nltk.download([
     'wordnet',
     'tagsets',
     'averaged_perceptron_tagger'
-    ], quiet=True
+], quiet=True
 )
 
 
@@ -49,23 +49,26 @@ class VectorSimilarity(BaseEstimator):
 
         return gram_matrix, gram_desc_args, gram_desc
 
-    def predict(self, X):
-        return self.predict_score(X)[0]
+    def predict(self, X, show_score=True, quiet=False):
+        None if quiet else print('Inferring on the query:', X)
+        start = time()
+        if type(X) == str:
+            X = list(X)
 
-    def score(self, X, y=None):
-        return self.predict_score(X)[1]
-
-    def predict_score(self, X):
-        # Ensures that any call to predict/score will require only one call to linear_kernel()
         gram_matrix, gram_desc_args, gram_desc = self._gram_matrices(X)
-
         pred = self._labels.take(gram_desc_args[:, :self.n_best])
         score = gram_desc[:, :self.n_best]
+
+        None if quiet else print(pred)
+        if show_score:
+            None if quiet else print(score)
+        None if quiet else print('Took', time() - start, 'seconds')
 
         return pred, score
 
 
 class LemmaTokenizer:
+
     def __init__(self, custom=False):
         self.wnl = WordNetLemmatizer()
         self.custom = custom
@@ -89,12 +92,12 @@ class LemmaTokenizer:
 
 def get_fitted_model(corpus, labels, lemmatize='default', **hyperparams):
     print('Training model...')
+
     start = time()
     pipe = get_model(lemmatize, **hyperparams)
-
     pipe.fit(corpus, labels)
-    print('Took', time() - start, 'seconds')
 
+    print('Took', time() - start, 'seconds')
     return pipe
 
 
@@ -118,19 +121,4 @@ def get_model(lemmatize, **hyperparams):
         VectorSimilarity(n_best=hyperparams['n_best'])
     )
 
-    # Add the predict_score() function from VectorSimilarity - inelegant, but gets the job done
-    pipe.predict_score = lambda x: pipe[1].predict_score(pipe[0].transform(x))
     return pipe
-
-
-def infer(pipe, text, show_score=False):
-    print('Inferring on the query:', text)
-    start = time()
-    if type(text) == str:
-        text = list(text)
-
-    print(pipe.predict(text))
-
-    if show_score:
-        print(pipe.score(text))
-    print('Took', time() - start, 'seconds')
