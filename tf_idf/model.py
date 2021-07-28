@@ -4,6 +4,7 @@ import re
 import nltk
 import numpy as np
 from nltk import WordNetLemmatizer, word_tokenize
+from nltk.corpus import wordnet
 from sklearn.base import BaseEstimator
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
@@ -50,10 +51,9 @@ class VectorSimilarity(BaseEstimator):
         return gram_matrix, gram_desc_args, gram_desc
 
     def predict(self, X, show_score=True, quiet=False):
-        None if quiet else print('Inferring on the query:', X)
         start = time()
         if type(X) == str:
-            X = list(X)
+            X = [X]
 
         gram_matrix, gram_desc_args, gram_desc = self._gram_matrices(X)
         pred = self._labels.take(gram_desc_args[:, :self.n_best])
@@ -62,7 +62,7 @@ class VectorSimilarity(BaseEstimator):
         None if quiet else print(pred)
         if show_score:
             None if quiet else print(score)
-        None if quiet else print('Took', time() - start, 'seconds')
+        None if quiet else print('Prediction took', time() - start, 'seconds')
 
         return pred, score
 
@@ -76,17 +76,24 @@ class LemmaTokenizer:
     def __call__(self, doc):
         if self.custom:
             # Find alphabetical tokens at least 3 chars long
-            tokens = re.findall(r"(?u)\b\w\w+\b", doc)
+            tokens = re.findall(r"[a-zA-Z]{3,}", doc)
             tokens = [word for word in tokens if len(word) >= 3]
 
             # Only use verb/noun tokens
-            tags = nltk.pos_tag(tokens)
-            tokens = [word for word, tag in tags if tag[0] in ['V', 'N']]
+            token_tags = nltk.pos_tag(tokens)
+            tokens = []
+            
+            # Convert NLTK POS tags to WordNet POS tags
+            for token, tag in token_tags:
+                if tag[0] == 'V':
+                    tokens.append((token, wordnet.VERB))
+                elif tag[0] == 'N':
+                    tokens.append((token, wordnet.NOUN))
 
         else:
-            tokens = word_tokenize(doc)
+            tokens = [(t,) for t in word_tokenize(doc)]
 
-        lemmatized_tokens = [self.wnl.lemmatize(t) for t in tokens]
+        lemmatized_tokens = [self.wnl.lemmatize(*t) for t in tokens]
         return lemmatized_tokens
 
 
@@ -105,13 +112,17 @@ def get_model(lemmatize, **hyperparams):
     # Set lemmatization, if any
     lemmatize = lemmatize.lower()
     if lemmatize == 'default':
-        vectorizer = TfidfVectorizer(tokenizer=LemmaTokenizer())
+        vectorizer = TfidfVectorizer(
+            tokenizer=LemmaTokenizer(),
+            stop_words='english'
+        )
     elif lemmatize == 'custom':
         vectorizer = TfidfVectorizer(
-            tokenizer=LemmaTokenizer(custom=True)
+            tokenizer=LemmaTokenizer(custom=True),
+            stop_words='english'
         )
     elif lemmatize == 'none':
-        vectorizer = TfidfVectorizer()
+        vectorizer = TfidfVectorizer(stop_words='english')
     else:
         raise ValueError('lemmatize must be {default, custom, none}')
 
