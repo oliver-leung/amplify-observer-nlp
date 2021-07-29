@@ -14,10 +14,19 @@ jobs:
         run: |
           echo "Issue body: ${{ github.event.issue.body }}"
           echo "Issue number: ${{ github.event.issue.number }}"
+          
+      - name: Run Inference
+        id: inferenceOutput
+        uses: fjogeleit/http-request-action@master
+        with:
+          url: 'https://zfb2nt2z77.execute-api.us-west-2.amazonaws.com/test/issue-similarity-inference'
+          method: 'POST'
+          data: '{"data": ["${{ github.event.issue.title}}"]}'
+          timeout: 30000
 
       - name: Reply to issue
         uses: peter-evans/create-or-update-comment@v1.4.5
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ${{ github.event.issue.body }}
+            ${{ steps.inferenceOutput.outputs.response }}
