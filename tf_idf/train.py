@@ -28,9 +28,12 @@ def combine_dfs(dfs):
         dfs,
         ignore_index=True
     )
+#     df = df[:5]
+#     print(df.columns)
+#     df.columns = ['repo', 'titleBody', 'id', 'url', 'number']
 
     # Clear empty values and reset indices
-    df = df[(not isinstance(df.bodyText, str)) and (df.bodyText != '')]
+#     df = df[(not isinstance(df.bodyText, str)) and (df.bodyText != '')]
     df = df.reset_index(drop=True)
     return df
 
