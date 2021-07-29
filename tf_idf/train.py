@@ -4,6 +4,7 @@ import os
 import joblib
 import pandas
 import pandas as pd
+import json
 from model import get_fitted_model
 
 
@@ -28,12 +29,6 @@ def combine_dfs(dfs):
         dfs,
         ignore_index=True
     )
-#     df = df[:5]
-#     print(df.columns)
-#     df.columns = ['repo', 'titleBody', 'id', 'url', 'number']
-
-    # Clear empty values and reset indices
-#     df = df[(not isinstance(df.bodyText, str)) and (df.bodyText != '')]
     df = df.reset_index(drop=True)
     return df
 
@@ -50,7 +45,7 @@ if __name__ == "__main__":
     dfs = [pd.read_parquet(file, engine='pyarrow') for file in files]
     train_table = combine_dfs(dfs)
 
-    train_X = train_table['bodyText']
+    train_X = train_table['title_body']
     train_y = train_table['url']
 
     # Create and train pipeline
@@ -66,3 +61,16 @@ def model_fn(model_dir):
     """
     clf = joblib.load(os.path.join(model_dir, "model.joblib"))
     return clf
+
+def input_fn(request_body, request_content_type):
+    print(request_body, request_content_type)
+    if request_content_type == 'application/json':
+        request = json.loads(request_body)
+        train_inputs = request['data']
+        return train_inputs
+    
+def predict_fn(input_data, model):
+    return model.predict(input_data)
+
+def output_fn():
+    print('unimplemented')

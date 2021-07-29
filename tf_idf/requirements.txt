@@ -8,3 +8,4 @@ markdown
 bs4
 sagemaker
 joblib
+nltk
