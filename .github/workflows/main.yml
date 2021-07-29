@@ -21,7 +21,7 @@ jobs:
         with:
           url: 'https://zfb2nt2z77.execute-api.us-west-2.amazonaws.com/test/issue-similarity-inference'
           method: 'POST'
-          data: '{"data": ["${{ github.event.issue.title}}"]
+          data: '{"data": ["${{ github.event.issue.title}}"]}'
 
       - name: Reply to issue
         uses: peter-evans/create-or-update-comment@v1.4.5
