@@ -35,7 +35,7 @@ class VectorSimilarity(BaseEstimator):
         if not isinstance(X, (np.ndarray, np.generic)):
             X = X.toarray()
 
-        X, y = self._validate_data(X, y)
+#         X, y = self._validate_data(X, y)
 
         # Model performance should be decoupled from references to training data
         self._Vectors = np.copy(X)
@@ -44,7 +44,12 @@ class VectorSimilarity(BaseEstimator):
         return self
 
     def _gram_matrices(self, X):
-        gram_matrix = linear_kernel(X, self._Vectors)
+        try:
+            gram_matrix = linear_kernel(X, self._Vectors)
+        except MemoryError:
+            print(X.shape)
+            print(self._Vectors.shape)
+            raise MemoryError(f'too big {X.shape}, {self._Vector.shape}')
         gram_desc_args = np.fliplr(gram_matrix.argsort())
         gram_desc = np.take_along_axis(gram_matrix, gram_desc_args, axis=1)
 
@@ -56,8 +61,13 @@ class VectorSimilarity(BaseEstimator):
             X = [X]
 
         gram_matrix, gram_desc_args, gram_desc = self._gram_matrices(X)
-        pred = self._labels.take(gram_desc_args[:, :self.n_best])
+        pred = self._labels.take(gram_desc_args[:, :self.n_best], axis=0)
         score = gram_desc[:, :self.n_best]
+        
+        # Simplify output for single inference
+#         if X.shape[0] == 1:
+#             pred = pred[0]
+#             score = score[0]
 
         None if quiet else print(pred)
         if show_score:
@@ -103,7 +113,7 @@ def get_fitted_model(corpus, labels, lemmatize='default', **hyperparams):
     start = time()
     pipe = get_model(lemmatize, **hyperparams)
     pipe.fit(corpus, labels)
-
+    print(len(pipe[0].get_feature_names()))
     print('Took', time() - start, 'seconds')
     return pipe
 

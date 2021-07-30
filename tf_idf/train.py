@@ -25,11 +25,27 @@ def parse_args():
 
 
 def combine_dfs(dfs):
-    df = pd.concat(
-        dfs,
-        ignore_index=True
-    )
+    """Concatenate a list of DataFrames in the order in which they are listed, then reset
+    the index.
+    """
+    df = pd.concat(dfs, ignore_index=True)
     df = df.reset_index(drop=True)
+    return df
+
+def load_files(direc):
+    filenames = os.listdir(direc)
+    files = [os.path.join(direc, fn) for fn in filenames]
+    
+    dfs = []
+    for file in files:
+        print(file)
+        _, ext = os.path.splitext(file)
+        if ext == 'parquet':
+            dfs.append(pd.read_parquet(file, engine='pyarrow'))
+        elif ext == 'csv':
+            dfs.append(pd.read_csv9(file))
+    
+    df = combine_dfs(dfs)
     return df
 
 
@@ -40,13 +56,9 @@ if __name__ == "__main__":
     }
 
     # Select corpus and labels
-    filenames = os.listdir(args.train)
-    files = [os.path.join(args.train, fn) for fn in filenames]
-    dfs = [pd.read_parquet(file, engine='pyarrow') for file in files]
-    train_table = combine_dfs(dfs)
-
-    train_X = train_table['title_body']
-    train_y = train_table['url']
+    train_df = load_files(args.train)
+    train_X = train_df['title_body']
+    train_y = list(zip(train_df['url'], train_df['title']))
 
     # Create and train pipeline
     clf = get_fitted_model(train_X, train_y, **hyperparams)
@@ -64,13 +76,33 @@ def model_fn(model_dir):
 
 def input_fn(request_body, request_content_type):
     print(request_body, request_content_type)
+    
+    train_inputs = []
     if request_content_type == 'application/json':
         request = json.loads(request_body)
         train_inputs = request['data']
-        return train_inputs
+        
+    elif request_content_type == 'application/octet-stream':
+        request = request_body.decode('utf-8')
+    
+    request = json.loads(request_body)
+    train_inputs = request['data']
+        
+    return train_inputs
     
 def predict_fn(input_data, model):
     return model.predict(input_data)
 
-def output_fn():
-    print('unimplemented')
+# def output_fn(prediction, content_type):
+#     print(prediction, content_type)
+#     if content_type == 'application/json':
+#         pred = prediction[0][0]
+#         pred = '\n'.join(pred)
+#         score = prediction[0][1]
+#         score = '\n'.join(score)
+#         output = 'Hello, I have found some issues that might be similar to yours:\n'
+#         output +=pred + '\n'
+#         output += 'This is how confident I am in these predictions:\n'
+#         output += score
+#         return output
+        
