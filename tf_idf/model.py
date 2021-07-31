@@ -45,11 +45,12 @@ class VectorSimilarity(BaseEstimator):
 
     def _gram_matrices(self, X):
         try:
+            print(self._Vectors.shape)
             gram_matrix = linear_kernel(X, self._Vectors)
         except MemoryError:
             print(X.shape)
             print(self._Vectors.shape)
-            raise MemoryError(f'too big {X.shape}, {self._Vector.shape}')
+            raise MemoryError(f'too big {X.shape}, {self._Vectors.shape}')
         gram_desc_args = np.fliplr(gram_matrix.argsort())
         gram_desc = np.take_along_axis(gram_matrix, gram_desc_args, axis=1)
 
@@ -59,6 +60,8 @@ class VectorSimilarity(BaseEstimator):
         start = time()
         if type(X) == str:
             X = [X]
+            
+        print(self._Vectors.shape)
 
         gram_matrix, gram_desc_args, gram_desc = self._gram_matrices(X)
         pred = self._labels.take(gram_desc_args[:, :self.n_best], axis=0)
