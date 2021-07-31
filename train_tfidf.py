@@ -6,6 +6,7 @@ import pandas
 import pandas as pd
 import json
 from tfidf_predictor import TfidfPredictor
+from utils_tfidf import combine_dfs
 
 
 def parse_args():
@@ -23,14 +24,6 @@ def parse_args():
     args, _ = parser.parse_known_args()
     return args
 
-
-def combine_dfs(dfs):
-    """Concatenate a list of DataFrames in the order in which they are listed, then reset
-    the index.
-    """
-    df = pd.concat(dfs, ignore_index=True)
-    df = df.reset_index(drop=True)
-    return df
 
 def load_files(direc):
     filenames = os.listdir(direc)

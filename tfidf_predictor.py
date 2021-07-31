@@ -95,6 +95,7 @@ class LemmaTokenizer:
             token_tags = [(t,) for t in word_tokenize(doc)]
 
         lemmatized_tokens = [self._wnl.lemmatize(*t) for t in token_tags]
+        lemmatized_tokens = [tok for tok in lemmatized_tokens if len(tok) >= 3]
         return lemmatized_tokens
 
 
