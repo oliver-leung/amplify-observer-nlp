@@ -35,14 +35,17 @@ def combine_dfs(dfs):
 def load_files(direc):
     filenames = os.listdir(direc)
     files = [os.path.join(direc, fn) for fn in filenames]
-    
+    print(direc)
+    print(filenames)
+    print(files)
     dfs = []
     for file in files:
-        print(file)
+        
         _, ext = os.path.splitext(file)
-        if ext == 'parquet':
+        print(ext)
+        if ext == '.parquet':
             dfs.append(pd.read_parquet(file, engine='pyarrow'))
-        elif ext == 'csv':
+        elif ext == '.csv':
             dfs.append(pd.read_csv9(file))
     
     df = combine_dfs(dfs)
