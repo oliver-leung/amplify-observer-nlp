@@ -1,5 +1,6 @@
 pip
 progress
+numpy
 awswrangler
 boto3
 pandas

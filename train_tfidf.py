@@ -5,7 +5,7 @@ import joblib
 import pandas
 import pandas as pd
 import json
-from model import get_fitted_model
+from tfidf_predictor import TfidfPredictor
 
 
 def parse_args():
@@ -64,7 +64,8 @@ if __name__ == "__main__":
     train_y = list(zip(train_df['url'], train_df['title']))
 
     # Create and train pipeline
-    clf = get_fitted_model(train_X, train_y, **hyperparams)
+    clf = TfidfPredictor(**hyperparams)
+    clf.fit(train_X, train_y)
 
     # Print the coefficients of the trained classifier, and save the coefficients
     joblib.dump(clf, os.path.join(args.model_dir, "model.joblib"))
