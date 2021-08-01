@@ -14,6 +14,13 @@ def combine_dfs(dfs):
     df = df.reset_index(drop=True)
     return df
 
+def get_corpus_labels(df, corpus_col, label_cols):
+    corpus = df[corpus_col]
+    label_cols_lst = [df[lab] for lab in label_cols]
+    labels = list(zip(*label_cols_lst))
+    
+    return corpus, labels
+
 def get_secrets():
     secret_name = "SageMakerS3Access"
     region_name = "us-west-2"
@@ -69,13 +76,15 @@ def deserialize_data(filename, verbose=False):
     if data.is_file():
         df = pd.read_csv(filename)
     else:
-        raise OSError(filename + ' is not a file.')
+        raise OSError(filename + ' is not a file or doesn\'t exist.')
         
     print('Deserializing data from', filename, 'took', time() - start, 'seconds') if verbose else None
     return df
 
 def get_data(filename, force_redownload=False, verbose=False):
-    if force_redownload:
+    data = Path(filename)
+    
+    if force_redownload or not data.is_file():
         data_obj_names = list_data_objs()
         dfs = download_data(filename, data_obj_names, verbose=verbose)
         df = combine_dfs(dfs)

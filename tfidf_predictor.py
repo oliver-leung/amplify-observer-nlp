@@ -132,6 +132,8 @@ class TfidfPredictor(BaseEstimator):
 
     def predict(self, X, verbose=False):
         start = time()
+        if type(X) == str:
+            X = [X]
         pred, score = self._pipe.predict(X)
         print('Prediction took', time() - start, 'seconds') if verbose else None
         return pred, score
