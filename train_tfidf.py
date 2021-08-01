@@ -2,7 +2,6 @@ import argparse
 import os
 
 import joblib
-import pandas
 import pandas as pd
 import json
 from tfidf_predictor import TfidfPredictor
@@ -33,14 +32,14 @@ def load_files(direc):
     print(files)
     dfs = []
     for file in files:
-        
+
         _, ext = os.path.splitext(file)
         print(ext)
         if ext == '.parquet':
             dfs.append(pd.read_parquet(file, engine='pyarrow'))
         elif ext == '.csv':
             dfs.append(pd.read_csv9(file))
-    
+
     df = combine_dfs(dfs)
     return df
 
@@ -71,22 +70,24 @@ def model_fn(model_dir):
     clf = joblib.load(os.path.join(model_dir, "model.joblib"))
     return clf
 
+
 def input_fn(request_body, request_content_type):
     print(request_body, request_content_type)
-    
+
     train_inputs = []
     if request_content_type == 'application/json':
         request = json.loads(request_body)
         train_inputs = request['data']
-        
+
     elif request_content_type == 'application/octet-stream':
         request = request_body.decode('utf-8')
-    
+
     request = json.loads(request_body)
     train_inputs = request['data']
-        
+
     return train_inputs
-    
+
+
 def predict_fn(input_data, model):
     return model.predict(input_data)
 
@@ -102,4 +103,3 @@ def predict_fn(input_data, model):
 #         output += 'This is how confident I am in these predictions:\n'
 #         output += score
 #         return output
-        
