@@ -43,7 +43,8 @@ def load_files(direc):
 if __name__ == "__main__":
     args = parse_args()
     hyperparams = {
-        'n_best': args.n_best
+        'n_best': args.n_best,
+        'lemmatize': 'custom'
     }
 
     # Select corpus and labels
