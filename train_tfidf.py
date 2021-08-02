@@ -27,14 +27,10 @@ def parse_args():
 def load_files(direc):
     filenames = os.listdir(direc)
     files = [os.path.join(direc, fn) for fn in filenames]
-    print(direc)
-    print(filenames)
-    print(files)
     dfs = []
     for file in files:
 
         _, ext = os.path.splitext(file)
-        print(ext)
         if ext == '.parquet':
             dfs.append(pd.read_parquet(file, engine='pyarrow'))
         elif ext == '.csv':
