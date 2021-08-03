@@ -9,6 +9,7 @@ from sklearn.base import BaseEstimator
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 from sklearn.pipeline import make_pipeline
+from numba import jit
 
 nltk.download([
     'punkt',
@@ -41,14 +42,31 @@ class VectorSimilarity(BaseEstimator):
         self._labels = np.copy(y)
 
         return self
-
+    
+    @jit(nopython=True)
+    def linear_kernel_numba(self, u:np.ndarray, v:np.ndarray):
+        print(u.shape)
+        print(v.shape)
+        assert(u.shape[0] == v.shape[0])
+        uv = 0
+        uu = 0
+        vv = 0
+        for i in range(u.shape[0]):
+            uv += u[i]*v[i]
+            uu += u[i]*u[i]
+            vv += v[i]*v[i]
+        cos_theta = 1
+        if uu!=0 and vv!=0:
+            cos_theta = uv/np.sqrt(uu*vv)
+        return cos_theta
+    
     def _gram_matrices(self, X):
         try:
-            # print(self._Vectors.shape)
-            gram_matrix = linear_kernel(X, self._Vectors)
+#             gram_matrix = linear_kernel(X, self._Vectors)
+            print(X.shape, type(X))
+            print(self._Vectors.shape)
+            gram_matrix = self.linear_kernel_numba(X, self._Vectors)
         except MemoryError:
-            # print(X.shape)
-            # print(self._Vectors.shape)
             raise MemoryError(f'too big {X.shape}, {self._Vectors.shape}')
         gram_desc_args = np.fliplr(gram_matrix.argsort())
         gram_desc = np.take_along_axis(gram_matrix, gram_desc_args, axis=1)
