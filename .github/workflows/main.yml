@@ -23,10 +23,11 @@ jobs:
         run: |
           resp=${{steps.inferenceOutput.outputs.response}}
           body=${resp:1:-1}
+          echo "::set-output name=body::$body"
 
       - name: Reply to issue
         uses: peter-evans/create-or-update-comment@v1.4.5
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ${{ steps.removeQuotes.body }}
+            ${{ steps.removeQuotes.outputs.body }}
