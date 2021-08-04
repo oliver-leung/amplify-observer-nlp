@@ -19,9 +19,9 @@ jobs:
         id: inferenceOutput
         uses: fjogeleit/http-request-action@master
         with:
-          url: 'https://zfb2nt2z77.execute-api.us-west-2.amazonaws.com/test/issue-similarity-inference'
+          url: 'https://90tohuxjy0.execute-api.us-west-2.amazonaws.com/v1/amplify-github-issue-similarity'
           method: 'POST'
-          data: '{"data": ["${{ github.event.issue.title}}"]}'
+          data: '{"data": "${{ github.event.issue.title}}"}'
           timeout: 30000
 
       - name: Reply to issue
