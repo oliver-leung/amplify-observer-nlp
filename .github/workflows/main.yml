@@ -22,8 +22,7 @@ jobs:
         id: removeQuotes
         run: |
           resp=${{steps.inferenceOutput.outputs.response}}
-          body=${resp:1:-1}
-          echo "::set-output name=body::$body"
+          echo "::set-output name=body::$resp"
 
       - name: Reply to issue
         uses: peter-evans/create-or-update-comment@v1.4.5
