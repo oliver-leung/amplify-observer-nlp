@@ -17,10 +17,15 @@ jobs:
           method: 'POST'
           data: '{"data": "${{ github.event.issue.title}}"}'
           timeout: 30000
+          
+      - name: Remove quotes
+        id: removeQuotes
+        run: |
+          body=${ ${{steps.inferenceOutput.outputs.response}}:1:-1}
 
       - name: Reply to issue
         uses: peter-evans/create-or-update-comment@v1.4.5
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ${{ steps.inferenceOutput.outputs.response }}
+            ${{ steps.removeQuotes.body }}
