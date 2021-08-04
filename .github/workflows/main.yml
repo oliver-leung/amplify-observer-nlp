@@ -23,6 +23,7 @@ jobs:
           method: 'POST'
           data: '{"data": "${{ github.event.issue.title}}"}'
           timeout: 30000
+          contentType: "string"
 
       - name: Reply to issue
         uses: peter-evans/create-or-update-comment@v1.4.5
