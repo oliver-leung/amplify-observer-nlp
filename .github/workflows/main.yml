@@ -9,12 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Print issue data
-        run: |
-          echo "Issue body: ${{ github.event.issue.body }}"
-          echo "Issue number: ${{ github.event.issue.number }}"
-          
       - name: Run Inference
         id: inferenceOutput
         uses: fjogeleit/http-request-action@master
@@ -23,7 +17,6 @@ jobs:
           method: 'POST'
           data: '{"data": "${{ github.event.issue.title}}"}'
           timeout: 30000
-          contentType: "text/plain"
 
       - name: Reply to issue
         uses: peter-evans/create-or-update-comment@v1.4.5
