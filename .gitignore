@@ -150,3 +150,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 .idea/workspace.xml
+
+.DS_Store
+.idea/
+.gitconfig
