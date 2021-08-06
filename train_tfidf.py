@@ -18,7 +18,7 @@ def load_files(direc):
         if ext == '.parquet':
             dfs.append(pd.read_parquet(file, engine='pyarrow'))
         elif ext == '.csv':
-            dfs.append(pd.read_csv9(file))
+            dfs.append(pd.read_csv(file))
 
     df = combine_dfs(dfs)
     return df
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # Print the coefficients of the trained classifier, and save the coefficients
     joblib.dump(clf, os.path.join(args.model_dir, "model.joblib"))
 
-
+# The following are override functions to SageMaker's default script mode functions
 def model_fn(model_dir):
     """Deserialized and return fitted model
     Note that this should have the same name as the serialized model in the main method
@@ -73,6 +73,8 @@ def model_fn(model_dir):
 
 def input_fn(request_body, request_content_type):
     print(request_body, request_content_type)
+
+    # TODO: refactor
 
     train_inputs = []
     if request_content_type == 'application/json':

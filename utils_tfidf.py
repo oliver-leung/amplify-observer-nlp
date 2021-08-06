@@ -10,12 +10,29 @@ from progress.bar import Bar
 def combine_dfs(dfs):
     """Concatenate a list of DataFrames in the order in which they are listed, then reset
     the index.
-    """
+
+    Args:
+        dfs (Iterable[pd.DataFrame]): List of dataframes to concatenate.
+
+    Returns:
+        pd.DataFrame: Concat-ed dataframe.
+    """    
     df = pd.concat(dfs, ignore_index=True)
     df = df.reset_index(drop=True)
     return df
 
 def query_df(df, **kwargs):
+    """Query a DF by column values. Note that this only works for "match" queries,
+    i.e. where a column value exactly matches the query value. More complex queries
+    are not supported.
+
+    Args:
+        df (pd.DataFrame): DF to query.
+        **kwargs: Keyword arguments of the form `col_name=value`.
+
+    Returns:
+        pd.DataFrame: `df` with only rows matching the query.
+    """    
     query = True
     for key, val in kwargs.items():
         query &= df[key] == val
@@ -23,6 +40,16 @@ def query_df(df, **kwargs):
     return result
 
 def get_corpus_labels(df, corpus_col, label_cols):
+    """Get the corpus and labels from a DF, specified by column names.
+
+    Args:
+        df (pd.DataFrame): Original DF.
+        corpus_col (str): Corpus column name.
+        label_cols (str): Label column name.
+
+    Returns:
+        tuple[pd.Series, pd.Series]: Corpus and labels.
+    """    
     corpus = df[corpus_col]
     label_cols_lst = [df[lab] for lab in label_cols]
     labels = list(zip(*label_cols_lst))
@@ -46,6 +73,8 @@ def get_secrets():
 
 
 def list_data_objs():
+    """List the data objects in the training bucket. (Hard-coded for now.)
+    """    
     bucket_name = 'amplifyobserverinsights-aoinsightslandingbucket29-5vcr471d4nm5'
     bucket_subfolder = 'data/issues/'
 
@@ -56,7 +85,17 @@ def list_data_objs():
     return data_obj_names
 
 
-def download_data(filename, data_obj_names, verbose=False):
+def download_data(data_obj_names, verbose=False):
+    """Download data from S3.
+
+    Args:
+        data_obj_names (list[str]): List of data object names from S3.
+        verbose (bool, optional): Whether to print time to download. Defaults to
+        False.
+
+    Returns:
+        list[pd.DataFrame]: List of deserialized S3 objects.
+    """    
     start = time()
     dfs = []
     s3 = boto3.client('s3')
@@ -81,6 +120,19 @@ def download_data(filename, data_obj_names, verbose=False):
 
 
 def deserialize_data(filename, verbose=False):
+    """Deserialize a local CSV file.
+
+    Args:
+        filename (str): Name of file (relative path).
+        verbose (bool, optional): Whether to print deserialization time.
+        Defaults to False.
+
+    Raises:
+        OSError: If the file `filename` does not exist, or is not a file.
+
+    Returns:
+        pd.DataFrame: Deserialized data.
+    """    
     start = time()
     data = Path(filename)
 
@@ -94,11 +146,23 @@ def deserialize_data(filename, verbose=False):
 
 
 def get_data(filename, force_redownload=False, verbose=False):
+    """Get data from a local file or S3.
+
+    Args:
+        filename (str): File to get data from or write data to.
+        force_redownload (bool, optional): Whether to redownload data, even if
+        `filename` is found. Defaults to False.
+        verbose (bool, optional): Whether to print time to complete operations.
+        Defaults to False.
+
+    Returns:
+        [type]: [description]
+    """    
     data = Path(filename)
 
     if force_redownload or not data.is_file():
         data_obj_names = list_data_objs()
-        dfs = download_data(filename, data_obj_names, verbose=verbose)
+        dfs = download_data(data_obj_names, verbose=verbose)
         df = combine_dfs(dfs)
         df.to_csv(filename, index=False)
     else:
