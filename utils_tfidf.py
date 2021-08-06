@@ -15,6 +15,12 @@ def combine_dfs(dfs):
     df = df.reset_index(drop=True)
     return df
 
+def query_df(df, **kwargs):
+    query = True
+    for key, val in kwargs.items():
+        query &= df[key] == val
+    result = df[query]
+    return result
 
 def get_corpus_labels(df, corpus_col, label_cols):
     corpus = df[corpus_col]

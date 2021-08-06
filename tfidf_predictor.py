@@ -1,4 +1,5 @@
 from time import time
+from collections import Sequence
 import re
 
 import nltk
@@ -9,7 +10,7 @@ from sklearn.base import BaseEstimator
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 from sklearn.pipeline import make_pipeline
-from numba import jit
+from numba import jit, prange
 
 nltk.download([
     'punkt',
@@ -19,6 +20,33 @@ nltk.download([
 ], quiet=True
 )
 
+# Not working at the moment - types issue
+@jit(nopython=True)
+def linear_kernel_numba(u:np.ndarray, M:np.ndarray):
+    scores = np.zeros(M.shape[0])
+    for i in prange(M.shape[0]):
+        v = M[i]
+        m = u.shape[0]
+        udotv = 0
+        u_norm = 0
+        v_norm = 0
+        for j in range(m):
+            if (np.isnan(u[j])) or (np.isnan(v[j])):
+                continue
+
+            udotv += u[j] * v[j]
+            u_norm += u[j] * u[j]
+            v_norm += v[j] * v[j]
+
+        u_norm = np.sqrt(u_norm)
+        v_norm = np.sqrt(v_norm)
+
+        if (u_norm == 0) or (v_norm == 0):
+            ratio = 1.0
+        else:
+            ratio = udotv / (u_norm * v_norm)
+        scores[i] = ratio
+    return scores
 
 class VectorSimilarity(BaseEstimator):
     def __init__(self, n_best=10):
@@ -43,29 +71,11 @@ class VectorSimilarity(BaseEstimator):
 
         return self
     
-    @jit(nopython=True)
-    def linear_kernel_numba(self, u:np.ndarray, v:np.ndarray):
-        print(u.shape)
-        print(v.shape)
-        assert(u.shape[0] == v.shape[0])
-        uv = 0
-        uu = 0
-        vv = 0
-        for i in range(u.shape[0]):
-            uv += u[i]*v[i]
-            uu += u[i]*u[i]
-            vv += v[i]*v[i]
-        cos_theta = 1
-        if uu!=0 and vv!=0:
-            cos_theta = uv/np.sqrt(uu*vv)
-        return cos_theta
-    
     def _gram_matrices(self, X):
         try:
-#             gram_matrix = linear_kernel(X, self._Vectors)
-            print(X.shape, type(X))
-            print(self._Vectors.shape)
-            gram_matrix = self.linear_kernel_numba(X, self._Vectors)
+            gram_matrix = linear_kernel(X, self._Vectors)
+#             X = np.array(X, dtype='float64')
+#             gram_matrix = linear_kernel_numba(X, self._Vectors)
         except MemoryError:
             raise MemoryError(f'too big {X.shape}, {self._Vectors.shape}')
         gram_desc_args = np.fliplr(gram_matrix.argsort())
@@ -77,14 +87,8 @@ class VectorSimilarity(BaseEstimator):
         gram_matrix, gram_desc_args, gram_desc = self._gram_matrices(X)
         pred = self._labels.take(gram_desc_args[:, :self.n_best], axis=0)
         score = gram_desc[:, :self.n_best]
-        
-        # TODO: Simplify output for single inference
-#         if X.shape[0] == 1:
-#             pred = pred[0]
-#             score = score[0]
 
         return pred, score
-
 
 class LemmaTokenizer:
     def __init__(self, custom=False):
@@ -135,13 +139,18 @@ def get_vectorizer(lemmatize='default'):
 
 
 class TfidfPredictor(BaseEstimator):
-    def __init__(self, lemmatize='default', n_best=10):
+    def __init__(self, 
+                 lemmatize='default', 
+                 n_best=10, 
+                 label_names=None):
+        
         self._vectorizer = get_vectorizer(lemmatize=lemmatize)
         self._similarity = VectorSimilarity(n_best=n_best)
         self._pipe = make_pipeline(
             self._vectorizer,
             self._similarity
         )
+        self.label_names = label_names
 
     def fit(self, corpus, labels, verbose=False):
         start = time()
@@ -155,6 +164,38 @@ class TfidfPredictor(BaseEstimator):
         pred, score = self._pipe.predict(X)
         print('Prediction took', time() - start, 'seconds') if verbose else None
         return pred, score
+    
+    def predict_obj(self, X, verbose=False):
+        if type(X) != str:
+            raise ValueError('predict_obj only supports one inference at a time.')
+            
+        preds, scores = self.predict(X, verbose=verbose)
+        
+        # Get length of each prediction entry
+        if len(self._similarity._labels.shape) < 2:
+            num_labels = 1
+        else:
+            num_labels = self._similarity._labels.shape[-1]
+        
+        if self.label_names == None or not isinstance(self.label_names, Sequence):
+            raise ValueError('predict_obj requires a sequence of label names for the output.')
+        if len(self.label_names) != num_labels:
+            raise ValueError('label_names does not have the same size as the labels configured on this predictor.')
+        
+        
+        output = {
+            'Text': X,
+            'Similar': []
+        }
+
+        for pred, score in zip(preds[0], scores[0]):
+            label_val = zip(self.label_names, pred)
+            entry = {label: val for label, val in label_val}
+            entry['Score'] = score
+            output['Similar'].append(entry)
+            
+        return output
+            
 
     def inspect_doc(self, doc, n_top=10):
         if type(doc) == str:
@@ -172,11 +213,13 @@ class TfidfPredictor(BaseEstimator):
         top_words = words_desc[:, :n_top]
         top_weights = weights_desc[:, :n_top]
 
-        return list(zip(top_words, top_weights))
+        return list(zip(top_words[0], top_weights[0]))
 
     def get_weights(self, query, doc):
         if type(doc) == str:
             doc = [doc]
+        if len(doc) > 1 or type(query) != str:
+            raise ValueError('Only one document per call is supported')
 
         tokenizer = self._vectorizer.build_tokenizer()
         tokens = tokenizer(query)

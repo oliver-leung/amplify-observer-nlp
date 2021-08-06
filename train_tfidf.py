@@ -8,22 +8,6 @@ from tfidf_predictor import TfidfPredictor
 from utils_tfidf import combine_dfs
 
 
-def parse_args():
-    global args
-    parser = argparse.ArgumentParser()
-
-    # Set hyperparameters
-    parser.add_argument("--n-best", type=int, default=10)
-
-    # Sagemaker specific arguments. Defaults are set in the environment variables.
-    parser.add_argument("--output-data-dir", type=str, default=os.environ["SM_OUTPUT_DATA_DIR"])
-    parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
-    parser.add_argument("--train", type=str, default=os.environ["SM_CHANNEL_TRAIN"])
-
-    args, _ = parser.parse_known_args()
-    return args
-
-
 def load_files(direc):
     filenames = os.listdir(direc)
     files = [os.path.join(direc, fn) for fn in filenames]
@@ -39,15 +23,33 @@ def load_files(direc):
     df = combine_dfs(dfs)
     return df
 
+def parse_args():
+    global args
+    parser = argparse.ArgumentParser()
+
+    # Set hyperparameters. Ensure that these match the hyperparams of TfidfPredictor.
+    parser.add_argument("--n_best", type=int, default=10)
+    parser.add_argument("--lemmatize", type=str, default='default')
+
+    # Sagemaker specific arguments. Defaults are set in the environment variables.
+    parser.add_argument("--output-data-dir", type=str, default=os.environ["SM_OUTPUT_DATA_DIR"])
+    parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
+    parser.add_argument("--train", type=str, default=os.environ["SM_CHANNEL_TRAIN"])
+
+    args, _ = parser.parse_known_args()
+    return args
 
 if __name__ == "__main__":
     args = parse_args()
+    
+    # Ensure that these match the hyperparams specified in parse_args.
     hyperparams = {
         'n_best': args.n_best,
-        'lemmatize': 'custom'
+        'lemmatize': args.lemmatize,
+        'label_names': ['Url', 'Title']
     }
 
-    # Select corpus and labels
+    # Select corpus and labels. Note that the column labels specified below and above are specific to the dataset being used.
     train_df = load_files(args.train)
     train_X = train_df['title_body']
     train_y = list(zip(train_df['url'], train_df['title']))
@@ -55,6 +57,7 @@ if __name__ == "__main__":
     # Create and train pipeline
     clf = TfidfPredictor(**hyperparams)
     clf.fit(train_X, train_y)
+    print(clf.label_names)
 
     # Print the coefficients of the trained classifier, and save the coefficients
     joblib.dump(clf, os.path.join(args.model_dir, "model.joblib"))
@@ -86,17 +89,8 @@ def input_fn(request_body, request_content_type):
 
 
 def predict_fn(input_data, model):
-    return model.predict(input_data)
+    return model.predict_obj(input_data)
 
-# def output_fn(prediction, content_type):
-#     print(prediction, content_type)
-#     if content_type == 'application/json':
-#         pred = prediction[0][0]
-#         pred = '\n'.join(pred)
-#         score = prediction[0][1]
-#         score = '\n'.join(score)
-#         output = 'Hello, I have found some issues that might be similar to yours:\n'
-#         output +=pred + '\n'
-#         output += 'This is how confident I am in these predictions:\n'
-#         output += score
-#         return output
+def output_fn(prediction, content_type):
+    print(prediction, content_type)
+    return prediction
