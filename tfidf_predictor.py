@@ -12,6 +12,7 @@ from sklearn.metrics.pairwise import linear_kernel
 from sklearn.pipeline import make_pipeline
 from numba import jit, prange
 
+# Download NLTK extensions for Lemmatizer and WordNet POS tagger
 nltk.download([
     'punkt',
     'wordnet',
@@ -50,11 +51,34 @@ def linear_kernel_numba(u:np.ndarray, M:np.ndarray):
 
 class VectorSimilarity(BaseEstimator):
     def __init__(self, n_best=10):
+        """Instantiate a VectorSimilarity estimator. VectorSimilarity can perform
+        pairwise comparisons of vectors to find the most similar ones, returning
+        the corresponding "labels".
+
+        Args:
+            n_best (int, optional): How many of the best vectors to return.
+            Defaults to 10.
+        """        
         self.n_best = n_best
         self._Vectors = np.array([])
         self._labels = np.array([])
 
     def fit(self, X, y):
+        """Fit VectorSimilarity onto a set of vectors and their associated labels.
+
+        Args:
+            X (Iterable[Iterable[float]]): List of vectors to be compared
+            y (Iterable[any]): Associated labels for each vector. These labels
+            themselves can be of any type.
+
+        Raises:
+            ValueError: if X and y have different lengths. Each vector can only
+            be associated with one label.
+
+        Returns:
+            VectorSimilarity: Fitted VectorSimilarity object. Note that this
+            function is also an in-place operation.
+        """
         # Convert dense (i.e. "efficient") array representation to sparse
         if not isinstance(X, (np.ndarray, np.generic)):
             X = X.toarray()
@@ -72,6 +96,16 @@ class VectorSimilarity(BaseEstimator):
         return self
     
     def _gram_matrices(self, X):
+        """Get the Gram matrices (dot product score) and highest-scoring indices
+        for a list of input vectors.
+
+        Args:
+            X (Iterable[Iterable[float]]): list of input vectors to be compared
+
+        Returns:
+            (np.ndarray, np.ndarray, np.ndarray): unsorted Gram matrix (dot
+            product), n highest-scoring indices, and n highest scores.
+        """        
         try:
             gram_matrix = linear_kernel(X, self._Vectors)
 #             X = np.array(X, dtype='float64')
@@ -84,6 +118,17 @@ class VectorSimilarity(BaseEstimator):
         return gram_matrix, gram_desc_args, gram_desc
 
     def predict(self, X, verbose=False):
+        """Get the labels of the most similar vectors in the training set.
+
+        Args:
+            X (Iterable[Iterable[float]]): list of input vectors to be compared
+            verbose (bool, optional): whether to print extra information about
+            the prediction. Defaults to False.
+
+        Returns:
+            (np.ndarray, np.ndarray): the n best labels and dot product scores
+            from the training set.
+        """
         gram_matrix, gram_desc_args, gram_desc = self._gram_matrices(X)
         pred = self._labels.take(gram_desc_args[:, :self.n_best], axis=0)
         score = gram_desc[:, :self.n_best]
@@ -92,10 +137,26 @@ class VectorSimilarity(BaseEstimator):
 
 class LemmaTokenizer:
     def __init__(self, custom=False):
+        """Instantiate a LemmaTokenizer. LemmaTokenizer tokenizes text, then
+        performs lemmatization (case and tense are removed).
+
+        Args:
+            custom (bool, optional): whether to use a custom tokenization
+            and lemmatization pipeline. Defaults to False, in which case the
+            default NLTK tokenizer is used.
+        """        
         self._wnl = WordNetLemmatizer()
         self.custom = custom # Whether to use custom tokenization pipeline
 
     def __call__(self, doc):
+        """Tokenize and lemmatize a document.
+
+        Args:
+            doc (str): Document to be tokenized & lemmatized.
+
+        Returns:
+            list: lemmatized word tokens
+        """        
         if self.custom:
             # Find alphabetical tokens at least 3 chars long
             tokens = re.findall(r"[a-zA-Z]{3,}", doc)
@@ -122,6 +183,18 @@ class LemmaTokenizer:
 
 
 def get_vectorizer(lemmatize='default'):
+    """Get a configured TfidfVectorizer.
+
+    Args:
+        lemmatize (str, optional): Type of lemmatization. Must be 'default',
+        'custom', or 'none'. Defaults to 'default'.
+
+    Raises:
+        ValueError: if `lemmatize` is not one of the above.
+
+    Returns:
+        TfidfVectorizer: a configured TfidfVectorizer.
+    """
     lemmatize = lemmatize.lower()
     vectorizer = TfidfVectorizer(stop_words='english')
 
@@ -143,7 +216,18 @@ class TfidfPredictor(BaseEstimator):
                  lemmatize='default', 
                  n_best=10, 
                  label_names=None):
-        
+        """Instantiate a TfidfPredictor. A TfidfPredictor vectorizes input
+        documents, then compares them against a training set of documents,
+        returning labels corresponding to the most similar documents in the
+        training set.
+
+        Args:
+            lemmatize (str, optional): See `LemmaTokenizer`.
+            n_best (int, optional): See `VectorSimilarity`.
+            label_names ([type], optional): Names of each label to be trained
+            on, in the same order as the labels appear in the training set.
+            Required for returning API responses.
+        """
         self._vectorizer = get_vectorizer(lemmatize=lemmatize)
         self._similarity = VectorSimilarity(n_best=n_best)
         self._pipe = make_pipeline(
@@ -153,11 +237,32 @@ class TfidfPredictor(BaseEstimator):
         self.label_names = label_names
 
     def fit(self, corpus, labels, verbose=False):
+        """Fit the TfidfPredictor to a training corpus and labels. This is an
+        in-place operation.
+
+        Args:
+            corpus (Iterable[str]): Corpus of training documents.
+            labels (Iterable[any]): Labels corresponding to each of the training
+            documents.
+            verbose (bool, optional): Whether to print the training time.
+            Defaults to False.
+        """        
         start = time()
         self._pipe.fit(corpus, labels)
         print('Training took', time() - start, 'seconds') if verbose else None
 
     def predict(self, X, verbose=False):
+        """Predict the most similar documents in the training set.
+
+        Args:
+            X (Iterable[str] | str): Document(s) to be compared against the training set.
+            verbose (bool, optional): Whether to print the prediction time.
+            Defaults to False.
+
+        Returns:
+            (np.ndarray, np.ndarray): the n best labels and dot product scores
+            from the training set.
+        """        
         start = time()
         if type(X) == str:
             X = [X]
@@ -166,6 +271,16 @@ class TfidfPredictor(BaseEstimator):
         return pred, score
     
     def predict_obj(self, X, verbose=False):
+        """`predict()`, but return a dict (i.e. object) for an API response.
+
+        Raises:
+            ValueError: if more than one document is passed, the label names are
+            not configured, or if the number of labels does not match the labels
+            provided during training.
+
+        Returns:
+            dict: Prediction and score object.
+        """
         if type(X) != str:
             raise ValueError('predict_obj only supports one inference at a time.')
             
@@ -183,6 +298,7 @@ class TfidfPredictor(BaseEstimator):
             raise ValueError('label_names does not have the same size as the labels configured on this predictor.')
         
         
+        # Package predictions into a dict
         output = {
             'Text': X,
             'Similar': []
@@ -198,6 +314,19 @@ class TfidfPredictor(BaseEstimator):
             
 
     def inspect_doc(self, doc, n_top=10):
+        """Determine the most unique vocab words in a document.
+
+        Args:
+            doc (Iterable[str] | str): A document to be inspected.
+            n_top (int, optional): Number of vocab words. Defaults to 10.
+
+        Raises:
+            ValueError: if more than one document is passed.
+
+        Returns:
+            list[tuple[str, float]]: The most unique vocab words in the document,
+            along with their dot product scores.
+        """        
         if type(doc) == str:
             doc = [doc]
         if len(doc) > 1:
@@ -216,6 +345,20 @@ class TfidfPredictor(BaseEstimator):
         return list(zip(top_words[0], top_weights[0]))
 
     def get_weights(self, query, doc):
+        """For each word in the query, determine the weight of that word in the
+        document.
+
+        Args:
+            query (str): Query.
+            doc (Iterable[str] | str): Document.
+
+        Raises:
+            ValueError: If more than one document is passed.
+
+        Returns:
+            list[tuple[str, float]]: The tokenized query, along with the dot
+            product score of each word from the document.
+        """
         if type(doc) == str:
             doc = [doc]
         if len(doc) > 1 or type(query) != str:
